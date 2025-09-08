@@ -41,7 +41,6 @@ jobs:
           else
             PREFIX="pre-v"
           fi
-          # Use Japan Standard Time (JST, UTC+9) date
           DATE=$(TZ=Asia/Tokyo date +"%Y-%m-%d")
           echo "prefix=$PREFIX" >> $GITHUB_OUTPUT
           echo "date=$DATE" >> $GITHUB_OUTPUT
@@ -51,13 +50,10 @@ jobs:
         run: |
           PREFIX="${{ steps.vars.outputs.prefix }}"
           DATE="${{ steps.vars.outputs.date }}"
-          # Ensure we have the latest tags
           git fetch --tags --force
+          CUR=001
+          BASE="${PREFIX}${DATE}"
           # Start from .001 and increment until a free tag is found
-          NNN=001
-          TAG_NAME="${PREFIX}${DATE}.${NNN}"
-          BASE="${TAG_NAME%.*}"
-          CUR="${TAG_NAME##*.}"
           while git rev-parse -q --verify "refs/tags/${BASE}.${CUR}" >/dev/null; do
             NEXT=$((10#$CUR + 1))
             CUR=$(printf "%03d" "$NEXT")
@@ -69,10 +65,9 @@ jobs:
         env:
           TAG_NAME: ${{ steps.next.outputs.tag }}
         run: |
-          # Tag the merge commit SHA
-          COMMIT_SHA=${{ github.event.pull_request.merge_commit_sha }}
+          COMMIT_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          # Fallback to HEAD
           if [ -z "$COMMIT_SHA" ]; then
-            # Fallback to HEAD
             COMMIT_SHA=$(git rev-parse HEAD)
           fi
           git tag "$TAG_NAME" "$COMMIT_SHA"
